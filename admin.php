@@ -6,7 +6,7 @@ check_auth();
 $user_role = $_SESSION['role'] ?? 'viewer';
 $username  = $_SESSION['username'] ?? 'User';
 $page      = $_GET['page'] ?? 'dashboard';
-$editing_id = isset($_GET['id']) ? (int)$_GET['id'] : 1; 
+$editing_id = isset($_GET['id']) ? (int)$_GET['id'] : 1;
 
 // 2. SECURITY GATE
 $restricted_pages = ['users', 'settings', 'pages', 'editor', 'plugins'];
@@ -20,7 +20,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['plugin_zip']) && $us
     $zipFile = $_FILES['plugin_zip'];
     $extractTo = __DIR__ . '/plugins/'; // Use absolute path
 
-    // Check if directory is writable
     if (!is_writable($extractTo)) {
         die("Error: The 'plugins' folder is not writable. Check permissions.");
     }
@@ -29,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['plugin_zip']) && $us
         $zip = new ZipArchive;
         if ($zip->open($zipFile['tmp_name']) === TRUE) {
             $pluginSlug = trim($zip->getNameIndex(0), '/');
-            
+
             if ($zip->extractTo($extractTo)) {
                 $zip->close();
                 $stmt = $db->prepare("INSERT IGNORE INTO plugins (name, slug, is_active) VALUES (?, ?, 0)");
@@ -75,6 +74,7 @@ if ($page === 'editor') {
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <title>Locawork Admin | <?= htmlspecialchars(ucfirst($page)) ?></title>
@@ -82,9 +82,28 @@ if ($page === 'editor') {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <style>
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .sortable-ghost { opacity: 0.4; border: 2px solid #3b82f6 !important; }
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        .sortable-ghost {
+            opacity: 0.3;
+            background: #f1f5f9;
+            border: 2px dashed #3b82f6 !important;
+        }
+
+        .drag-handle {
+            cursor: grab;
+        }
+
+        .drag-handle:active {
+            cursor: grabbing;
+        }
     </style>
 </head>
 
@@ -94,7 +113,7 @@ if ($page === 'editor') {
         <div class="p-6 text-white text-2xl font-bold tracking-tight border-b border-slate-800">
             <i class="fa fa-cubes text-blue-500 mr-2"></i>Locawork
         </div>
-        
+
         <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
             <a href="?page=dashboard" class="flex items-center p-3 rounded hover:bg-slate-800 transition <?= $page == 'dashboard' ? 'bg-slate-800 text-white' : '' ?>">
                 <i class="fa fa-home w-8"></i> Dashboard
@@ -140,11 +159,10 @@ if ($page === 'editor') {
         </header>
 
         <section class="flex-1 overflow-y-auto p-8">
-            <?php 
-            // MAIN ROUTER
-            switch($page) {
+            <?php
+            switch ($page) {
                 case 'dashboard':
-                    echo '<h1 class="text-2xl font-bold">Welcome, '.htmlspecialchars($username).'!</h1>';
+                    echo '<h1 class="text-2xl font-bold">Welcome, ' . htmlspecialchars($username) . '!</h1>';
                     break;
                 case 'plugins':
                     include 'admin_plugins.php';
@@ -161,54 +179,141 @@ if ($page === 'editor') {
                 case 'settings':
                     include 'admin_settings.php';
                     break;
-                case 'editor':
-                    // EDITOR UI CODE
-                    ?>
-                    <div class="flex h-full gap-6">
-                        <div class="w-full lg:w-1/2 flex flex-col">
-                            <div class="flex items-center gap-2 mb-4 bg-white p-4 rounded-xl border">
-                                <button onclick="addBlock('text')" class="bg-slate-100 p-2 rounded text-xs font-bold"> + Text</button>
-                                <button onclick="addBlock('image')" class="bg-slate-100 p-2 rounded text-xs font-bold"> + Image</button>
-                                <button onclick="saveAjax()" class="ml-auto bg-blue-600 text-white px-4 py-2 rounded font-bold text-xs">Save Page</button>
-                            </div>
-                            <div id="block-list" class="space-y-4"></div>
-                        </div>
-                        <div class="hidden lg:block lg:w-1/2">
-                            <iframe id="preview-frame" src="index.php?id=<?= $editing_id ?>&preview=1" class="w-full h-full border rounded bg-white shadow-inner"></iframe>
-                        </div>
+case 'editor':
+    ?>
+    <link href="https://cdn.jsdelivr.net/npm/gridstack@7.2.3/dist/gridstack.min.css" rel="stylesheet"/>
+    <script src="https://cdn.jsdelivr.net/npm/gridstack@7.2.3/dist/gridstack-all.js"></script>
+
+    <div class="fixed inset-0 z-[100] bg-slate-100 flex flex-col font-sans">
+        
+        <header class="h-[65px] bg-slate-900 text-white flex justify-between items-center px-6 shadow-xl">
+            <div class="flex items-center gap-4">
+                <a href="?page=pages" class="text-slate-400 hover:text-white"><i class="fa fa-times text-xl"></i></a>
+                <h2 class="font-bold">Visual Designer: <span class="text-blue-400"><?= htmlspecialchars($current_page_title) ?></span></h2>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="saveGrid()" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 rounded-full font-bold text-sm shadow-lg transition">Save Layout</button>
+            </div>
+        </header>
+
+        <div class="flex flex-1 overflow-hidden">
+            <aside class="w-72 bg-white border-r shadow-xl flex flex-col z-20">
+                <div class="p-4 border-b bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-400">Drag to Canvas</div>
+                <div class="p-4 grid grid-cols-2 gap-3">
+                    <div class="newWidget p-4 border rounded-xl bg-white cursor-grab hover:bg-blue-50 text-center transition shadow-sm" data-type="text">
+                        <i class="fa fa-font text-slate-400 mb-1 block"></i><span class="text-[10px] font-bold">TEXT</span>
                     </div>
-                    <script>
-                        let blocks = <?= $current_page_data ?: '[]' ?>;
-                        const currentPageId = <?= $editing_id ?>;
-                        function render() {
-                            document.getElementById('block-list').innerHTML = blocks.map(b => `
-                                <div class="bg-white border p-4 rounded-xl shadow-sm">
-                                    <div class="text-[10px] font-bold text-slate-400 uppercase mb-2">${b.type}</div>
-                                    <textarea oninput="updateContent(${b.id}, this.value)" class="w-full border rounded p-2 text-sm">${b.content}</textarea>
-                                </div>
-                            `).join('');
-                        }
-                        function addBlock(t) { blocks.push({id: Date.now(), type: t, content: ''}); render(); }
-                        function updateContent(id, v) { const b = blocks.find(x => x.id == id); if(b) b.content = v; }
-                        function saveAjax() {
-                            const fd = new FormData();
-                            fd.append('save_blocks', '1');
-                            fd.append('page_id', currentPageId);
-                            fd.append('block_data', JSON.stringify(blocks));
-                            fetch('admin', { method: 'POST', body: fd, headers: {'X-Requested-With': 'XMLHttpRequest'}})
-                            .then(r => r.json()).then(() => {
-                                document.getElementById('save-status').classList.remove('hidden');
-                                setTimeout(() => document.getElementById('save-status').classList.add('hidden'), 2000);
-                                document.getElementById('preview-frame').contentWindow.location.reload();
-                            });
-                        }
-                        render();
-                    </script>
-                    <?php
-                    break;
+                    <div class="newWidget p-4 border rounded-xl bg-white cursor-grab hover:bg-blue-50 text-center transition shadow-sm" data-type="image">
+                        <i class="fa fa-image text-slate-400 mb-1 block"></i><span class="text-[10px] font-bold">IMAGE</span>
+                    </div>
+                    <div class="newWidget p-4 border rounded-xl bg-white cursor-grab hover:bg-blue-50 text-center transition shadow-sm" data-type="video">
+                        <i class="fa fa-play text-slate-400 mb-1 block"></i><span class="text-[10px] font-bold">VIDEO</span>
+                    </div>
+                    <div class="newWidget p-4 border rounded-xl bg-white cursor-grab hover:bg-blue-50 text-center transition shadow-sm" data-type="button">
+                        <i class="fa fa-link text-slate-400 mb-1 block"></i><span class="text-[10px] font-bold">BUTTON</span>
+                    </div>
+                </div>
+
+                <div id="inspector" class="hidden flex-1 border-t bg-slate-50 p-4 overflow-y-auto">
+                    <h3 class="text-[10px] font-black uppercase text-blue-600 mb-4 border-b pb-2">Properties</h3>
+                    <div id="inspector-content"></div>
+                </div>
+            </aside>
+
+            <main class="flex-1 bg-slate-200 p-8 overflow-y-auto">
+                <div class="grid-stack bg-white min-h-screen rounded-xl shadow-inner p-4"></div>
+            </main>
+        </div>
+    </div>
+
+    <style>
+        .grid-stack { background-image: radial-gradient(#e2e8f0 1px, transparent 1px); background-size: 30px 30px; }
+        .grid-stack-item-content { background: white; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); overflow: hidden !important; }
+        .block-header { background: #f8fafc; padding: 5px 10px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; cursor: move; }
+        .block-type { font-size: 8px; font-weight: 900; color: #94a3b8; text-transform: uppercase; }
+    </style>
+
+    <script>
+        let grid = GridStack.init({
+            cellHeight: 70,
+            acceptWidgets: true,
+            dragIn: '.newWidget',
+            dragInOptions: { revert: 'invalid', scroll: false, appendTo: 'body', helper: 'clone' },
+            removable: '#trash', 
+            margin: 10
+        });
+
+        // Load existing data
+        let savedData = <?= $current_page_data ?: '[]' ?>;
+        grid.load(savedData);
+
+        // When a new widget is dropped from the sidebar
+        grid.on('added', function(e, items) {
+            items.forEach(item => {
+                let type = item.el.getAttribute('data-type');
+                if(type) {
+                    item.el.setAttribute('data-content', '');
+                    item.el.innerHTML = `
+                        <div class="grid-stack-item-content">
+                            <div class="block-header">
+                                <span class="block-type">${type}</span>
+                                <button onclick="removeWidget(this)" class="text-slate-300 hover:text-red-500"><i class="fa fa-times text-[10px]"></i></button>
+                            </div>
+                            <div class="p-4 text-[10px] text-slate-400 italic" onclick="editWidget('${item._id}')">Click to configure</div>
+                        </div>`;
+                }
+            });
+        });
+
+        function removeWidget(btn) {
+            grid.removeWidget(btn.closest('.grid-stack-item'));
+        }
+
+        function editWidget(id) {
+            const el = document.querySelector(`[gs-id="${id}"]`);
+            const inspector = document.getElementById('inspector');
+            const content = document.getElementById('inspector-content');
+            inspector.classList.remove('hidden');
+
+            content.innerHTML = `
+                <div class="space-y-4">
+                    <label class="block text-[10px] font-bold">CONTENT / URL</label>
+                    <textarea id="temp-content" class="w-full border rounded p-2 text-sm h-32">${el.getAttribute('data-content') || ''}</textarea>
+                    <button onclick="saveWidgetData('${id}')" class="w-full bg-slate-900 text-white p-2 rounded text-xs font-bold uppercase">Update Block</button>
+                </div>
+            `;
+        }
+
+        function saveWidgetData(id) {
+            const el = document.querySelector(`[gs-id="${id}"]`);
+            const val = document.getElementById('temp-content').value;
+            el.setAttribute('data-content', val);
+            el.querySelector('.italic').innerText = val.substring(0, 30) + '...';
+        }
+
+        function saveGrid() {
+            let data = grid.save();
+            // We loop to ensure our custom content stays in the JSON
+            data.forEach(d => {
+                let el = document.querySelector(`[gs-id="${d.id}"]`);
+                d.content = el.getAttribute('data-content');
+            });
+
+            const fd = new FormData();
+            fd.append('save_blocks', '1');
+            fd.append('page_id', <?= $editing_id ?>);
+            fd.append('block_data', JSON.stringify(data));
+            
+            fetch('admin.php', { method: 'POST', body: fd, headers: {'X-Requested-With': 'XMLHttpRequest'}})
+            .then(r => r.json()).then(() => alert("Layout Saved!"));
+        }
+    </script>
+    <?php
+    break;
             }
             ?>
         </section>
     </main>
 </body>
+
 </html>

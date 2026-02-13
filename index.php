@@ -1,7 +1,7 @@
 <?php
 require_once 'core/config.php';
 
-// 1. Get Settings with Fallbacks
+// 1. Get Settings
 $settings_query = $db->query("SELECT setting_key, setting_value FROM settings");
 $settings = $settings_query->fetchAll(PDO::FETCH_KEY_PAIR);
 
@@ -17,139 +17,103 @@ $stmt->execute([$page_id]);
 $page_data = $stmt->fetch();
 
 if (!$page_data) {
-    die("Page not found. Check your database IDs.");
+    die("Page not found.");
 }
 
+// Decode the Draggable Grid Data
 $blocks = json_decode($page_data['content'] ?? '[]', true) ?: [];
-
-/**
- * Helper function to render blocks. 
- * This is now a function so it can call itself for nested grids.
- */
-function renderBlocks($blocks, $db) {
-    if (empty($blocks)) return;
-
-    foreach ($blocks as $block) {
-        $type = $block['type'] ?? 'text';
-        
-        // Wrapper for spacing
-        echo '<div class="block-render mb-6">';
-
-        switch ($type) {
-            case 'grid':
-                $gap = $block['gap'] ?? '20';
-                $height = $block['height'] ?? 'auto';
-                echo '<div class="flex flex-wrap" style="gap: '.$gap.'px; min-height: '.$height.';">';
-                
-                foreach (($block['columns'] ?? []) as $col) {
-                    $width = $col['width'] ?? '100%';
-                    // Calculate width minus gap for clean rows
-                    echo '<div style="flex: 1 1 calc('.$width.' - '.$gap.'px); max-width: '.$width.';">';
-                    
-                    // RENDER NESTED BLOCKS INSIDE COLUMN
-                    if (!empty($col['blocks'])) {
-                        renderBlocks($col['blocks'], $db);
-                    } 
-                    // Fallback for old data where content was just a string
-                    else if (!empty($col['content'])) {
-                        echo $col['content'];
-                    }
-                    
-                    echo '</div>';
-                }
-                echo '</div>';
-                break;
-
-            case 'menu':
-                echo '<div class="bg-white rounded-xl shadow-sm border border-slate-100">';
-                renderCmsMenu($db);
-                echo '</div>';
-                break;
-
-            case 'html':
-                echo $block['content'] ?? '';
-                break;
-
-            case 'container':
-                $css = htmlspecialchars($block['css'] ?? '');
-                echo '<div style="'.$css.'">'.($block['content'] ?? '').'</div>';
-                break;
-
-            case 'text':
-                echo '<div class="bg-white rounded-xl shadow-sm border border-slate-100 p-6 text-slate-700 leading-relaxed">';
-                echo nl2br(htmlspecialchars($block['content'] ?? ''));
-                echo '</div>';
-                break;
-
-            case 'image':
-                $src = htmlspecialchars($block['content'] ?? '');
-                echo '<div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">';
-                if ($src) {
-                    echo '<img src="'.$src.'" class="w-full h-auto block">';
-                } else {
-                    echo '<div class="bg-slate-100 h-48 flex items-center justify-center text-slate-400"><i class="fa fa-image text-2xl"></i></div>';
-                }
-                echo '</div>';
-                break;
-        }
-
-        echo '</div>';
-    }
-}
-
-/**
- * Navigation Menu Renderer
- */
-function renderCmsMenu($db) {
-    $main_items = $db->query("SELECT * FROM menus WHERE parent_id IS NULL ORDER BY position ASC")->fetchAll();
-    echo '<nav class="flex flex-wrap gap-6 p-4">';
-    foreach ($main_items as $item) {
-        $sub_stmt = $db->prepare("SELECT * FROM menus WHERE parent_id = ? ORDER BY position ASC");
-        $sub_stmt->execute([$item['id']]);
-        $subs = $sub_stmt->fetchAll();
-
-        echo '<div class="relative group">';
-        echo '<a href="'.htmlspecialchars($item['url']).'" class="text-slate-700 hover:text-blue-600 font-bold">';
-        echo htmlspecialchars($item['title']) . (count($subs) ? ' <i class="fa fa-chevron-down text-[10px]"></i>' : '');
-        echo '</a>';
-
-        if (count($subs)) {
-            echo '<div class="absolute hidden group-hover:block bg-white shadow-xl border rounded-lg p-2 min-w-[160px] z-50 mt-2">';
-            foreach ($subs as $sub) {
-                echo '<a href="'.htmlspecialchars($sub['url']).'" class="block p-2 text-sm hover:bg-slate-50 rounded">'.htmlspecialchars($sub['title']).'</a>';
-            }
-            echo '</div>';
-        }
-        echo '</div>';
-    }
-    echo '</nav>';
-}
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= htmlspecialchars($site_title) ?> | <?= htmlspecialchars($page_data['title'] ?? 'Home') ?></title>
+    <title><?= htmlspecialchars($site_title) ?> | <?= htmlspecialchars($page_data['title']) ?></title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <link href="https://cdn.jsdelivr.net/npm/gridstack@7.2.3/dist/gridstack.min.css" rel="stylesheet"/>
+    
     <style>
-        body { background-color: #f8fafc; min-height: 100vh; }
-        /* Prevent layout shift from large images */
-        img { max-width: 100%; height: auto; }
+        body { background-color: #f8fafc; }
+        /* Clean up GridStack defaults for the public view */
+        .grid-stack { background: transparent; }
+        .grid-stack-item-content { border: none !important; }
+        .custom-btn { padding: 12px 24px; border-radius: 8px; display: inline-block; transition: all 0.2s; }
+        .custom-btn:hover { opacity: 0.9; transform: translateY(-1px); }
     </style>
 </head>
-<body class="py-10 px-4">
+<body class="py-10">
 
-    <div class="max-w-5xl mx-auto">
-        <?php 
-            if (empty($blocks)) {
-                echo '<div class="text-center py-20 text-slate-400 border-2 border-dashed rounded-xl">This page is empty. Start adding blocks in the editor.</div>';
-            } else {
-                renderBlocks($blocks, $db); 
-            }
-        ?>
+    <div class="max-w-7xl mx-auto px-4">
+        <header class="mb-10 flex justify-between items-center">
+            <h1 class="text-3xl font-black text-slate-800 uppercase tracking-tighter"><?= htmlspecialchars($site_title) ?></h1>
+            <a href="admin.php?page=editor&id=<?= $page_id ?>" class="text-xs bg-white border px-4 py-2 rounded-lg shadow-sm hover:bg-slate-50">Edit Page</a>
+        </header>
+
+        <?php if (empty($blocks)): ?>
+            <div class="text-center py-20 text-slate-400 border-2 border-dashed rounded-xl">
+                Page is empty.
+            </div>
+        <?php else: ?>
+            <div class="grid-stack">
+                <?php foreach ($blocks as $b): ?>
+                    <div class="grid-stack-item" 
+                         gs-x="<?= $b['x'] ?>" 
+                         gs-y="<?= $b['y'] ?>" 
+                         gs-w="<?= $b['w'] ?>" 
+                         gs-h="<?= $b['h'] ?>">
+                        
+                        <div class="grid-stack-item-content">
+                            <?php 
+                            $type = $b['content_type'] ?? 'text'; 
+                            $content = $b['content'] ?? '';
+                            
+                            switch($type):
+                                case 'text': ?>
+                                    <div class="prose prose-slate max-w-none">
+                                        <?= nl2br(htmlspecialchars($content)) ?>
+                                    </div>
+                                <?php break;
+
+                                case 'image': ?>
+                                    <img src="<?= htmlspecialchars($content) ?>" class="w-full h-full object-cover rounded-xl shadow-md">
+                                <?php break;
+
+                                case 'button': ?>
+                                    <div class="h-full flex items-center justify-center">
+                                        <a href="#" class="custom-btn bg-blue-600 text-white shadow-lg">
+                                            <?= htmlspecialchars($content ?: 'Click Here') ?>
+                                        </a>
+                                    </div>
+                                <?php break;
+
+                                case 'video':
+                                    $embed = str_replace("watch?v=", "embed/", $content); ?>
+                                    <iframe class="w-full h-full rounded-xl shadow-lg" src="<?= htmlspecialchars($embed) ?>" frameborder="0" allowfullscreen></iframe>
+                                <?php break;
+
+                                case 'html':
+                                case 'code':
+                                    echo $content;
+                                break;
+                            endswitch; ?>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/gridstack@7.2.3/dist/gridstack-all.js"></script>
+    <script>
+        // staticGrid: true makes it non-draggable for the public
+        GridStack.init({ 
+            staticGrid: true, 
+            margin: 10,
+            cellHeight: 70 
+        });
+    </script>
 </body>
 </html>
