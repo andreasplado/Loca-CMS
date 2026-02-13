@@ -1,5 +1,33 @@
 <?php
 require_once 'core/config.php';
+// 2. CHECK FOR SAVE REQUEST IMMEDIATELY
+if (isset($_POST['save_blocks'])) {
+    
+    // Clear any accidental spaces or PHP warnings that might have popped up
+    if (ob_get_length()) ob_clean(); 
+    
+    header('Content-Type: application/json');
+
+    try {
+        $page_id = (int)$_POST['page_id'];
+        $block_data = $_POST['block_data'];
+
+        $stmt = $db->prepare("UPDATE pages SET content = ? WHERE id = ?");
+        $success = $stmt->execute([$block_data, $page_id]);
+
+        if ($success) {
+            echo json_encode(['status' => 'success']);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'SQL execution failed']);
+        }
+    } catch (Exception $e) {
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    }
+    
+    // 3. THIS IS MANDATORY. It stops the rest of the HTML from loading.
+    exit; 
+}
+
 check_auth();
 
 // 1. SESSION & PERMISSIONS
@@ -45,20 +73,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['plugin_zip']) && $us
         die("Upload Error Code: " . $zipFile['error']);
     }
 }
-
-// 4. HANDLE AJAX SAVE (Page Specific)
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_blocks'])) {
-    if ($user_role !== 'admin') {
-        exit(json_encode(['status' => 'error', 'message' => 'Unauthorized']));
-    }
-    $target_id = (int)$_POST['page_id'];
-    $stmt = $db->prepare("UPDATE pages SET content = ? WHERE id = ?");
-    $success = $stmt->execute([$_POST['block_data'], $target_id]);
-    if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
-        exit(json_encode(['status' => $success ? 'success' : 'error']));
-    }
-}
-
 // 5. FETCH DATA FOR THE EDITOR
 $current_page_data = '[]';
 $current_page_title = 'Dashboard';
