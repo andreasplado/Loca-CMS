@@ -25,25 +25,45 @@ $blocks = json_decode($page_data['content'] ?? '[]', true) ?: [];
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($site_title) ?> | <?= htmlspecialchars($page_data['title']) ?></title>
-    
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
-    <link href="https://cdn.jsdelivr.net/npm/gridstack@7.2.3/dist/gridstack.min.css" rel="stylesheet"/>
-    
+
+    <link href="https://cdn.jsdelivr.net/npm/gridstack@7.2.3/dist/gridstack.min.css" rel="stylesheet" />
+
     <style>
-        body { background-color: #f8fafc; }
+        body {
+            background-color: #f8fafc;
+        }
+
         /* Clean up GridStack defaults for the public view */
-        .grid-stack { background: transparent; }
-        .grid-stack-item-content { border: none !important; }
-        .custom-btn { padding: 12px 24px; border-radius: 8px; display: inline-block; transition: all 0.2s; }
-        .custom-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        .grid-stack {
+            background: transparent;
+        }
+
+        .grid-stack-item-content {
+            border: none !important;
+        }
+
+        .custom-btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            display: inline-block;
+            transition: all 0.2s;
+        }
+
+        .custom-btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
     </style>
 </head>
+
 <body class="py-10">
 
     <div class="max-w-7xl mx-auto px-4">
@@ -59,18 +79,18 @@ $blocks = json_decode($page_data['content'] ?? '[]', true) ?: [];
         <?php else: ?>
             <div class="grid-stack">
                 <?php foreach ($blocks as $b): ?>
-                    <div class="grid-stack-item" 
-                         gs-x="<?= $b['x'] ?>" 
-                         gs-y="<?= $b['y'] ?>" 
-                         gs-w="<?= $b['w'] ?>" 
-                         gs-h="<?= $b['h'] ?>">
-                        
+                    <div class="grid-stack-item"
+                        gs-x="<?= $b['x'] ?>"
+                        gs-y="<?= $b['y'] ?>"
+                        gs-w="<?= $b['w'] ?>"
+                        gs-h="<?= $b['h'] ?>">
+
                         <div class="grid-stack-item-content">
-                            <?php 
-                            $type = $b['content_type'] ?? 'text'; 
+                            <?php
+                            $type = $b['content_type'] ?? 'text';
                             $content = $b['content'] ?? '';
-                            
-                            switch($type):
+
+                            switch ($type):
                                 case 'text': ?>
                                     <div class="prose prose-slate max-w-none">
                                         <?= nl2br(htmlspecialchars($content)) ?>
@@ -92,12 +112,12 @@ $blocks = json_decode($page_data['content'] ?? '[]', true) ?: [];
                                 case 'video':
                                     $embed = str_replace("watch?v=", "embed/", $content); ?>
                                     <iframe class="w-full h-full rounded-xl shadow-lg" src="<?= htmlspecialchars($embed) ?>" frameborder="0" allowfullscreen></iframe>
-                                <?php break;
+                            <?php break;
 
                                 case 'html':
                                 case 'code':
                                     echo $content;
-                                break;
+                                    break;
                             endswitch; ?>
                         </div>
                     </div>
@@ -109,11 +129,70 @@ $blocks = json_decode($page_data['content'] ?? '[]', true) ?: [];
     <script src="https://cdn.jsdelivr.net/npm/gridstack@7.2.3/dist/gridstack-all.js"></script>
     <script>
         // staticGrid: true makes it non-draggable for the public
-        GridStack.init({ 
-            staticGrid: true, 
+        GridStack.init({
+            staticGrid: true,
             margin: 10,
-            cellHeight: 70 
+            cellHeight: 70
         });
+
+        /**
+         * GridStack Frontend Controller
+         * This script initializes the static grid and ensures all custom 
+         * content (Images, Videos, Buttons) scales to fit your saved sizes.
+         */
+
+        document.addEventListener('DOMContentLoaded', function() {
+
+            // 1. Initialize the Grid in Static Mode
+            // This reads the gs-x, gs-y, gs-w, gs-h attributes from your PHP loop
+            const grid = GridStack.init({
+                staticGrid: true, // Disables dragging/resizing for visitors
+                margin: 10, // The gap between your boxes
+                cellHeight: 80, // Must match your admin.php cellHeight for consistency
+                column: 12, // Standard 12-column bootstrap-style grid
+                animate: true, // Smooth layout loading
+                disableOneColumnMode: false // Allows stacking on mobile phones
+            });
+
+            console.log("GridStack initialized in static mode.");
+
+            // 2. Fix for IFRAMES and IMAGES
+            // Since GridStack items are absolutely positioned, we force 
+            // internal content to fill the draggable area completely.
+            const adjustInternalContent = () => {
+                const items = document.querySelectorAll('.grid-stack-item-content');
+                items.forEach(item => {
+                    // If the block is an image or video, make it fill the container
+                    const media = item.querySelector('img, iframe');
+                    if (media) {
+                        media.style.width = '100%';
+                        media.style.height = '100%';
+                        media.style.display = 'block';
+                        media.style.objectFit = 'cover';
+                    }
+                });
+            };
+
+            // Run adjustment on load
+            adjustInternalContent();
+
+            // 3. Optional: Handle Window Resize
+            // GridStack handles the grid, but we ensure images stay sharp
+            window.addEventListener('resize', adjustInternalContent);
+        });
+
+        /**
+         * Helper: YouTube Link Formatter
+         * Used if you want to dynamically update video links on the fly
+         */
+        function formatYoutube(url) {
+            if (!url) return '';
+            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+            const match = url.match(regExp);
+            return (match && match[2].length === 11) ?
+                `https://www.youtube.com/embed/${match[2]}` : url;
+        }
     </script>
 </body>
+
 </html>

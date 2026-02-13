@@ -179,137 +179,14 @@ if ($page === 'editor') {
                 case 'settings':
                     include 'admin_settings.php';
                     break;
-case 'editor':
-    ?>
-    <link href="https://cdn.jsdelivr.net/npm/gridstack@7.2.3/dist/gridstack.min.css" rel="stylesheet"/>
-    <script src="https://cdn.jsdelivr.net/npm/gridstack@7.2.3/dist/gridstack-all.js"></script>
+                case 'editor':
+                    // Define variables the editor needs
+                    $page_id = $editing_id;
+                    $page_title = $current_page_title;
+                    $page_json = $current_page_data ?: '[]';
 
-    <div class="fixed inset-0 z-[100] bg-slate-100 flex flex-col font-sans">
-        
-        <header class="h-[65px] bg-slate-900 text-white flex justify-between items-center px-6 shadow-xl">
-            <div class="flex items-center gap-4">
-                <a href="?page=pages" class="text-slate-400 hover:text-white"><i class="fa fa-times text-xl"></i></a>
-                <h2 class="font-bold">Visual Designer: <span class="text-blue-400"><?= htmlspecialchars($current_page_title) ?></span></h2>
-            </div>
-            <div class="flex gap-3">
-                <button onclick="saveGrid()" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 rounded-full font-bold text-sm shadow-lg transition">Save Layout</button>
-            </div>
-        </header>
-
-        <div class="flex flex-1 overflow-hidden">
-            <aside class="w-72 bg-white border-r shadow-xl flex flex-col z-20">
-                <div class="p-4 border-b bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-400">Drag to Canvas</div>
-                <div class="p-4 grid grid-cols-2 gap-3">
-                    <div class="newWidget p-4 border rounded-xl bg-white cursor-grab hover:bg-blue-50 text-center transition shadow-sm" data-type="text">
-                        <i class="fa fa-font text-slate-400 mb-1 block"></i><span class="text-[10px] font-bold">TEXT</span>
-                    </div>
-                    <div class="newWidget p-4 border rounded-xl bg-white cursor-grab hover:bg-blue-50 text-center transition shadow-sm" data-type="image">
-                        <i class="fa fa-image text-slate-400 mb-1 block"></i><span class="text-[10px] font-bold">IMAGE</span>
-                    </div>
-                    <div class="newWidget p-4 border rounded-xl bg-white cursor-grab hover:bg-blue-50 text-center transition shadow-sm" data-type="video">
-                        <i class="fa fa-play text-slate-400 mb-1 block"></i><span class="text-[10px] font-bold">VIDEO</span>
-                    </div>
-                    <div class="newWidget p-4 border rounded-xl bg-white cursor-grab hover:bg-blue-50 text-center transition shadow-sm" data-type="button">
-                        <i class="fa fa-link text-slate-400 mb-1 block"></i><span class="text-[10px] font-bold">BUTTON</span>
-                    </div>
-                </div>
-
-                <div id="inspector" class="hidden flex-1 border-t bg-slate-50 p-4 overflow-y-auto">
-                    <h3 class="text-[10px] font-black uppercase text-blue-600 mb-4 border-b pb-2">Properties</h3>
-                    <div id="inspector-content"></div>
-                </div>
-            </aside>
-
-            <main class="flex-1 bg-slate-200 p-8 overflow-y-auto">
-                <div class="grid-stack bg-white min-h-screen rounded-xl shadow-inner p-4"></div>
-            </main>
-        </div>
-    </div>
-
-    <style>
-        .grid-stack { background-image: radial-gradient(#e2e8f0 1px, transparent 1px); background-size: 30px 30px; }
-        .grid-stack-item-content { background: white; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); overflow: hidden !important; }
-        .block-header { background: #f8fafc; padding: 5px 10px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; cursor: move; }
-        .block-type { font-size: 8px; font-weight: 900; color: #94a3b8; text-transform: uppercase; }
-    </style>
-
-    <script>
-        let grid = GridStack.init({
-            cellHeight: 70,
-            acceptWidgets: true,
-            dragIn: '.newWidget',
-            dragInOptions: { revert: 'invalid', scroll: false, appendTo: 'body', helper: 'clone' },
-            removable: '#trash', 
-            margin: 10
-        });
-
-        // Load existing data
-        let savedData = <?= $current_page_data ?: '[]' ?>;
-        grid.load(savedData);
-
-        // When a new widget is dropped from the sidebar
-        grid.on('added', function(e, items) {
-            items.forEach(item => {
-                let type = item.el.getAttribute('data-type');
-                if(type) {
-                    item.el.setAttribute('data-content', '');
-                    item.el.innerHTML = `
-                        <div class="grid-stack-item-content">
-                            <div class="block-header">
-                                <span class="block-type">${type}</span>
-                                <button onclick="removeWidget(this)" class="text-slate-300 hover:text-red-500"><i class="fa fa-times text-[10px]"></i></button>
-                            </div>
-                            <div class="p-4 text-[10px] text-slate-400 italic" onclick="editWidget('${item._id}')">Click to configure</div>
-                        </div>`;
-                }
-            });
-        });
-
-        function removeWidget(btn) {
-            grid.removeWidget(btn.closest('.grid-stack-item'));
-        }
-
-        function editWidget(id) {
-            const el = document.querySelector(`[gs-id="${id}"]`);
-            const inspector = document.getElementById('inspector');
-            const content = document.getElementById('inspector-content');
-            inspector.classList.remove('hidden');
-
-            content.innerHTML = `
-                <div class="space-y-4">
-                    <label class="block text-[10px] font-bold">CONTENT / URL</label>
-                    <textarea id="temp-content" class="w-full border rounded p-2 text-sm h-32">${el.getAttribute('data-content') || ''}</textarea>
-                    <button onclick="saveWidgetData('${id}')" class="w-full bg-slate-900 text-white p-2 rounded text-xs font-bold uppercase">Update Block</button>
-                </div>
-            `;
-        }
-
-        function saveWidgetData(id) {
-            const el = document.querySelector(`[gs-id="${id}"]`);
-            const val = document.getElementById('temp-content').value;
-            el.setAttribute('data-content', val);
-            el.querySelector('.italic').innerText = val.substring(0, 30) + '...';
-        }
-
-        function saveGrid() {
-            let data = grid.save();
-            // We loop to ensure our custom content stays in the JSON
-            data.forEach(d => {
-                let el = document.querySelector(`[gs-id="${d.id}"]`);
-                d.content = el.getAttribute('data-content');
-            });
-
-            const fd = new FormData();
-            fd.append('save_blocks', '1');
-            fd.append('page_id', <?= $editing_id ?>);
-            fd.append('block_data', JSON.stringify(data));
-            
-            fetch('admin.php', { method: 'POST', body: fd, headers: {'X-Requested-With': 'XMLHttpRequest'}})
-            .then(r => r.json()).then(() => alert("Layout Saved!"));
-        }
-    </script>
-    <?php
-    break;
+                    include 'admin_editor.php';
+                    break;
             }
             ?>
         </section>
