@@ -31,7 +31,7 @@ Locawork is a lightweight, high-performance PHP CMS featuring a **drag-and-drop 
 
 1.  **Clone the repository**:
     ```bash
-    git clone [https://github.com/yourusername/locawork-cms.git](https://github.com/yourusername/locawork-cms.git)
+    git clone [https://github.com/andreasplado/locawork-cms.git](https://github.com/andreasplado/locawork-cms.git)
     ```
 
 2.  **Database Setup**:
