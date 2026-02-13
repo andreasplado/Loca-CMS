@@ -195,7 +195,7 @@ if ($page === 'editor') {
                             fd.append('save_blocks', '1');
                             fd.append('page_id', currentPageId);
                             fd.append('block_data', JSON.stringify(blocks));
-                            fetch('admin.php', { method: 'POST', body: fd, headers: {'X-Requested-With': 'XMLHttpRequest'}})
+                            fetch('admin', { method: 'POST', body: fd, headers: {'X-Requested-With': 'XMLHttpRequest'}})
                             .then(r => r.json()).then(() => {
                                 document.getElementById('save-status').classList.remove('hidden');
                                 setTimeout(() => document.getElementById('save-status').classList.add('hidden'), 2000);

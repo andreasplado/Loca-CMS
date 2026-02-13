@@ -17,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['role']     = $user['role']; // THIS IS THE KEY LINE
 
         // 4. Redirect to admin
-        header('Location: admin.php');
+        header('Location: admin');
         exit; 
     } else {
         $error = "Invalid credentials";
