@@ -6,15 +6,45 @@ check_auth();
 $user_role = $_SESSION['role'] ?? 'viewer';
 $username  = $_SESSION['username'] ?? 'User';
 $page      = $_GET['page'] ?? 'dashboard';
-
-// 2. IDENTIFY WHICH PAGE IS BEING EDITED
 $editing_id = isset($_GET['id']) ? (int)$_GET['id'] : 1; 
 
-// 3. SECURITY GATE: Block Viewers from Management Pages
-$restricted_pages = ['users', 'settings', 'pages', 'editor'];
+// 2. SECURITY GATE
+$restricted_pages = ['users', 'settings', 'pages', 'editor', 'plugins'];
 if (in_array($page, $restricted_pages) && $user_role !== 'admin') {
     header("Location: ?page=dashboard&error=unauthorized");
     exit;
+}
+
+// 3. HANDLE PLUGIN UPLOAD (New Logic)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['plugin_zip']) && $user_role === 'admin') {
+    $zipFile = $_FILES['plugin_zip'];
+    $extractTo = __DIR__ . '/plugins/'; // Use absolute path
+
+    // Check if directory is writable
+    if (!is_writable($extractTo)) {
+        die("Error: The 'plugins' folder is not writable. Check permissions.");
+    }
+
+    if ($zipFile['error'] === UPLOAD_ERR_OK) {
+        $zip = new ZipArchive;
+        if ($zip->open($zipFile['tmp_name']) === TRUE) {
+            $pluginSlug = trim($zip->getNameIndex(0), '/');
+            
+            if ($zip->extractTo($extractTo)) {
+                $zip->close();
+                $stmt = $db->prepare("INSERT IGNORE INTO plugins (name, slug, is_active) VALUES (?, ?, 0)");
+                $stmt->execute([ucfirst($pluginSlug), $pluginSlug]);
+                header("Location: ?page=plugins&msg=uploaded");
+                exit;
+            } else {
+                die("Error: Could not extract ZIP.");
+            }
+        } else {
+            die("Error: Could not open ZIP file.");
+        }
+    } else {
+        die("Upload Error Code: " . $zipFile['error']);
+    }
 }
 
 // 4. HANDLE AJAX SAVE (Page Specific)
@@ -22,11 +52,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_blocks'])) {
     if ($user_role !== 'admin') {
         exit(json_encode(['status' => 'error', 'message' => 'Unauthorized']));
     }
-
     $target_id = (int)$_POST['page_id'];
     $stmt = $db->prepare("UPDATE pages SET content = ? WHERE id = ?");
     $success = $stmt->execute([$_POST['block_data'], $target_id]);
-
     if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
         exit(json_encode(['status' => $success ? 'success' : 'error']));
     }
@@ -74,12 +102,14 @@ if ($page === 'editor') {
 
             <?php if ($user_role === 'admin'): ?>
                 <div class="pt-4 pb-2 px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Site Management</div>
-                
                 <a href="?page=pages" class="flex items-center p-3 rounded hover:bg-slate-800 transition <?= $page == 'pages' ? 'bg-slate-800 text-white' : '' ?>">
                     <i class="fa fa-file-alt w-8"></i> Pages
                 </a>
                 <a href="?page=media" class="flex items-center p-3 rounded hover:bg-slate-800 transition <?= $page == 'media' ? 'bg-slate-800 text-white' : '' ?>">
                     <i class="fa fa-images w-8"></i> Media Gallery
+                </a>
+                <a href="?page=plugins" class="flex items-center p-3 rounded hover:bg-slate-800 transition <?= $page == 'plugins' ? 'bg-slate-800 text-white' : '' ?>">
+                    <i class="fa fa-plug w-8"></i> Plugins
                 </a>
                 <a href="?page=users" class="flex items-center p-3 rounded hover:bg-slate-800 transition <?= $page == 'users' ? 'bg-slate-800 text-white' : '' ?>">
                     <i class="fa fa-users w-8"></i> User Management
@@ -87,12 +117,6 @@ if ($page === 'editor') {
                 <a href="?page=settings" class="flex items-center p-3 rounded hover:bg-slate-800 transition <?= $page == 'settings' ? 'bg-slate-800 text-white' : '' ?>">
                     <i class="fa fa-cog w-8"></i> Settings
                 </a>
-            <?php else: ?>
-                <div class="mt-4 p-4 bg-slate-800/40 rounded-lg border border-slate-700 mx-2">
-                    <p class="text-[10px] text-slate-500 italic uppercase font-bold tracking-tighter">
-                        <i class="fa fa-lock mr-1"></i> Viewer Access Only
-                    </p>
-                </div>
             <?php endif; ?>
 
             <div class="pt-10 border-t border-slate-800">
@@ -104,168 +128,86 @@ if ($page === 'editor') {
     </aside>
 
     <main class="flex-1 flex flex-col overflow-hidden">
-        
         <header class="bg-white border-b p-4 flex justify-between items-center px-8 z-10 shadow-sm">
-            <div class="flex items-center gap-2">
-                <h2 class="text-xl font-bold text-slate-800 capitalize"><?= $page ?></h2>
-                <?php if($page === 'editor'): ?>
-                    <span class="text-slate-300 mx-2">/</span>
-                    <span class="bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-xs font-bold"><?= htmlspecialchars($current_page_title) ?></span>
-                <?php endif; ?>
-            </div>
-
+            <h2 class="text-xl font-bold text-slate-800 capitalize"><?= $page ?></h2>
             <div class="flex items-center gap-6">
-                <span id="save-status" class="hidden text-green-600 text-sm font-bold animate-bounce">
-                    <i class="fa fa-check-circle mr-1"></i> Changes Saved
-                </span>
+                <span id="save-status" class="hidden text-green-600 text-sm font-bold animate-bounce"><i class="fa fa-check-circle mr-1"></i> Saved</span>
                 <div class="text-right">
                     <div class="text-sm font-bold text-slate-700"><?= htmlspecialchars($username) ?></div>
-                    <div class="text-[10px] font-black uppercase tracking-widest <?= $user_role === 'admin' ? 'text-purple-500' : 'text-slate-400' ?>">
-                        <?= $user_role ?>
-                    </div>
+                    <div class="text-[10px] font-black uppercase tracking-widest text-purple-500"><?= $user_role ?></div>
                 </div>
             </div>
         </header>
 
         <section class="flex-1 overflow-y-auto p-8">
-
-            <?php if ($page === 'dashboard'): ?>
-                <div class="max-w-4xl mx-auto">
-                    <h1 class="text-2xl font-bold mb-6">Welcome back, <?= htmlspecialchars($username) ?>!</h1>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div class="bg-white p-6 rounded-xl border shadow-sm">
-                            <i class="fa fa-eye text-blue-500 mb-2"></i>
-                            <div class="text-slate-400 text-xs font-bold uppercase">Account Role</div>
-                            <div class="text-xl font-bold"><?= ucfirst($user_role) ?></div>
-                        </div>
-                    </div>
-                </div>
-
-            <?php elseif ($page === 'pages'): ?>
-                <?php include 'admin_pages.php'; ?>
-
-            <?php elseif ($page === 'users'): ?>
-                <?php include 'admin_users.php'; ?>
-
-            <?php elseif ($page === 'media'): ?>
-                <?php include 'admin_media.php'; ?>
-
-            <?php elseif ($page === 'settings'): ?>
-                <?php include 'admin_settings.php'; ?>
-
-            <?php elseif ($page === 'editor'): ?>
-                <div class="flex h-full gap-6">
-                    <div class="w-full lg:w-1/2 flex flex-col">
-                        <div class="flex flex-wrap items-center gap-2 mb-4 bg-white p-4 rounded-xl border shadow-sm">
-                            <button onclick="addBlock('text')" class="bg-slate-100 hover:bg-slate-200 px-3 py-2 rounded-lg font-bold transition text-xs">
-                                <i class="fa fa-font mr-1 text-blue-500"></i> Text
-                            </button>
-                            <button onclick="addBlock('image')" class="bg-slate-100 hover:bg-slate-200 px-3 py-2 rounded-lg font-bold transition text-xs">
-                                <i class="fa fa-image mr-1 text-purple-500"></i> Image
-                            </button>
-                            <button onclick="addBlock('grid')" class="bg-slate-100 hover:bg-slate-200 px-3 py-2 rounded-lg font-bold transition text-xs">
-                                <i class="fa fa-columns mr-1 text-indigo-500"></i> Grid
-                            </button>
-                            <button onclick="addBlock('container')" class="bg-slate-100 hover:bg-slate-200 px-3 py-2 rounded-lg font-bold transition text-xs">
-                                <i class="fa fa-square mr-1 text-green-500"></i> Box
-                            </button>
-                            
-                            <button onclick="saveAjax()" class="ml-auto bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg font-bold shadow-lg shadow-blue-200 transition text-sm">
-                                <i class="fa fa-save mr-2"></i> Save Page
-                            </button>
-                        </div>
-
-                        <div id="block-list" class="space-y-4 overflow-y-auto pb-20">
+            <?php 
+            // MAIN ROUTER
+            switch($page) {
+                case 'dashboard':
+                    echo '<h1 class="text-2xl font-bold">Welcome, '.htmlspecialchars($username).'!</h1>';
+                    break;
+                case 'plugins':
+                    include 'admin_plugins.php';
+                    break;
+                case 'pages':
+                    include 'admin_pages.php';
+                    break;
+                case 'users':
+                    include 'admin_users.php';
+                    break;
+                case 'media':
+                    include 'admin_media.php';
+                    break;
+                case 'settings':
+                    include 'admin_settings.php';
+                    break;
+                case 'editor':
+                    // EDITOR UI CODE
+                    ?>
+                    <div class="flex h-full gap-6">
+                        <div class="w-full lg:w-1/2 flex flex-col">
+                            <div class="flex items-center gap-2 mb-4 bg-white p-4 rounded-xl border">
+                                <button onclick="addBlock('text')" class="bg-slate-100 p-2 rounded text-xs font-bold"> + Text</button>
+                                <button onclick="addBlock('image')" class="bg-slate-100 p-2 rounded text-xs font-bold"> + Image</button>
+                                <button onclick="saveAjax()" class="ml-auto bg-blue-600 text-white px-4 py-2 rounded font-bold text-xs">Save Page</button>
                             </div>
-                    </div>
-
-                    <div class="hidden lg:flex lg:w-1/2 flex-col border-l pl-4">
-                        <div class="bg-slate-800 text-white text-[10px] font-bold uppercase p-2 rounded-t-lg flex justify-between items-center">
-                            <span><i class="fa fa-eye mr-2"></i>Live Preview</span>
-                            <button onclick="refreshPreview()" class="hover:text-blue-400"><i class="fa fa-sync"></i></button>
+                            <div id="block-list" class="space-y-4"></div>
                         </div>
-                        <iframe id="preview-frame" src="index.php?id=<?= $editing_id ?>&preview=1" class="w-full flex-1 border bg-white rounded-b-lg shadow-inner"></iframe>
+                        <div class="hidden lg:block lg:w-1/2">
+                            <iframe id="preview-frame" src="index.php?id=<?= $editing_id ?>&preview=1" class="w-full h-full border rounded bg-white shadow-inner"></iframe>
+                        </div>
                     </div>
-                </div>
-
-                <script>
-                    let blocks = <?= $current_page_data ?: '[]' ?>;
-                    const currentPageId = <?= $editing_id ?>;
-
-                    function render() {
-                        const container = document.getElementById('block-list');
-                        container.innerHTML = blocks.map((b) => `
-                            <div class="block-item group bg-white border p-4 rounded-xl shadow-sm hover:shadow-md transition" data-id="${b.id}">
-                                <div class="flex justify-between items-center mb-3">
-                                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest"><i class="fa fa-bars mr-2 cursor-move"></i>${b.type}</span>
-                                    <button onclick="deleteBlock(${b.id})" class="text-slate-300 hover:text-red-500"><i class="fa fa-times text-xs"></i></button>
+                    <script>
+                        let blocks = <?= $current_page_data ?: '[]' ?>;
+                        const currentPageId = <?= $editing_id ?>;
+                        function render() {
+                            document.getElementById('block-list').innerHTML = blocks.map(b => `
+                                <div class="bg-white border p-4 rounded-xl shadow-sm">
+                                    <div class="text-[10px] font-bold text-slate-400 uppercase mb-2">${b.type}</div>
+                                    <textarea oninput="updateContent(${b.id}, this.value)" class="w-full border rounded p-2 text-sm">${b.content}</textarea>
                                 </div>
-                                ${b.type === 'text' ? `
-                                    <textarea oninput="updateContent(${b.id}, this.value)" class="w-full text-sm border rounded-lg p-3 h-24 focus:ring-2 focus:ring-blue-100 outline-none transition">${b.content}</textarea>
-                                ` : b.type === 'image' ? `
-                                    <input type="text" value="${b.content}" oninput="updateContent(${b.id}, this.value)" class="w-full text-xs border p-2 rounded" placeholder="Image URL...">
-                                ` : `
-                                    <div class="bg-slate-50 p-4 rounded border-dashed border-2 text-center text-slate-400 text-xs italic">Block content editor for ${b.type} coming soon...</div>
-                                `}
-                            </div>
-                        `).join('');
-                        
-                        // Re-init sortable
-                        Sortable.create(container, {
-                            animation: 150,
-                            handle: '.fa-bars',
-                            onEnd: (evt) => {
-                                const movedItem = blocks.splice(evt.oldIndex, 1)[0];
-                                blocks.splice(evt.newIndex, 0, movedItem);
-                            }
-                        });
-                    }
-
-                    function addBlock(type) {
-                        blocks.push({ id: Date.now(), type: type, content: '' });
+                            `).join('');
+                        }
+                        function addBlock(t) { blocks.push({id: Date.now(), type: t, content: ''}); render(); }
+                        function updateContent(id, v) { const b = blocks.find(x => x.id == id); if(b) b.content = v; }
+                        function saveAjax() {
+                            const fd = new FormData();
+                            fd.append('save_blocks', '1');
+                            fd.append('page_id', currentPageId);
+                            fd.append('block_data', JSON.stringify(blocks));
+                            fetch('admin.php', { method: 'POST', body: fd, headers: {'X-Requested-With': 'XMLHttpRequest'}})
+                            .then(r => r.json()).then(() => {
+                                document.getElementById('save-status').classList.remove('hidden');
+                                setTimeout(() => document.getElementById('save-status').classList.add('hidden'), 2000);
+                                document.getElementById('preview-frame').contentWindow.location.reload();
+                            });
+                        }
                         render();
-                    }
-
-                    function updateContent(id, val) {
-                        const b = blocks.find(x => x.id == id);
-                        if (b) b.content = val;
-                    }
-
-                    function deleteBlock(id) {
-                        blocks = blocks.filter(x => x.id !== id);
-                        render();
-                    }
-
-                    function saveAjax() {
-                        const formData = new FormData();
-                        formData.append('save_blocks', '1');
-                        formData.append('page_id', currentPageId);
-                        formData.append('block_data', JSON.stringify(blocks));
-
-                        const status = document.getElementById('save-status');
-                        fetch('admin.php', {
-                            method: 'POST',
-                            body: formData,
-                            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                        })
-                        .then(r => r.json())
-                        .then(data => {
-                            if (data.status === 'success') {
-                                status.classList.remove('hidden');
-                                setTimeout(() => status.classList.add('hidden'), 2000);
-                                refreshPreview();
-                            }
-                        });
-                    }
-
-                    function refreshPreview() {
-                        document.getElementById('preview-frame').contentWindow.location.reload();
-                    }
-
-                    render();
-                </script>
-            <?php endif; ?>
-
+                    </script>
+                    <?php
+                    break;
+            }
+            ?>
         </section>
     </main>
 </body>

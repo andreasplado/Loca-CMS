@@ -18,3 +18,21 @@ function check_auth() {
         exit;
     }
 }
+
+
+// --- PLUGIN LOADER SYSTEM ---
+$active_plugins = $db->query("SELECT slug FROM plugins WHERE is_active = 1")->fetchAll();
+
+foreach ($active_plugins as $plugin) {
+    // Path to the plugin's folder
+    $plugin_path = __DIR__ . "/../plugins/" . $plugin['slug'] . "/";
+
+    if (is_dir($plugin_path)) {
+        // This scans the folder for ANY .php file and includes it
+        // This handles 'hello-world.php', 'plugin.php', or 'index.php'
+        $files = glob($plugin_path . "*.php");
+        foreach ($files as $file) {
+            include_once $file;
+        }
+    }
+}
