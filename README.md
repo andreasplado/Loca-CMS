@@ -40,7 +40,8 @@ The CMS does not save raw HTML blocks. It saves a JSON Blueprint. This ensures t
     "extra": "text-4xl font-black text-blue-600 text-center"
   }
 ]
-## 🚀 5. Quick Start GuideConnect:
+## 🚀 5. Quick Start Guide
+Connect:
 Update core/config.php with your local or production database credentials.Setup: Add a row to your pages table (e.g., ID: 1, Title: "Home Page").Build: Visit admin_builder.php?id=1. Drag widgets from the sidebar and design your layout.Publish: Click the "Publish Changes" button to sync the JSON to the database.View: Visit index.php?id=1 to see the live, rendered website.
 ## 🛠️ 6. Troubleshooting
 Issue
