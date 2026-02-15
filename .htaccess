@@ -1,10 +1,14 @@
 RewriteEngine On
 
-# 1. Remove .php from the URL (Redirect /page.php to /page)
+# 1. Standard PHP cleanup
 RewriteCond %{THE_REQUEST} ^[A-Z]{3,9}\ /([^\ ]+)\.php
 RewriteRule ^/?(.*)\.php$ /$1 [L,R=301]
 
-# 2. Map the clean URL back to the file (Internal rewrite)
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_FILENAME}\.php -f
 RewriteRule ^/?(.*)$ $1.php [L]
+
+# 2. The 404 Catch-All
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [L,QSA]
