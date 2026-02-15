@@ -1,24 +1,36 @@
-/* Create the core plugins table */
-CREATE TABLE IF NOT EXISTS plugins (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    slug VARCHAR(100) UNIQUE NOT NULL,
-    type ENUM('plugin', 'theme') DEFAULT 'plugin',
-    is_active TINYINT(1) DEFAULT 0
-);
+# 🏗️ Locawork Visual Builder
 
-/* Create the settings table */
-CREATE TABLE IF NOT EXISTS settings (
-    setting_key VARCHAR(100) PRIMARY KEY,
-    setting_value TEXT
-);
+A high-performance, Elementor-inspired **Drag-and-Drop Page Builder** built with PHP, GridStack.js, and Tailwind CSS. This tool allows for real-time layout management, widget customization, and seamless database synchronization.
 
-/* Initialize the default theme */
-INSERT IGNORE INTO settings (setting_key, setting_value) 
-VALUES ('active_theme', 'default');
 
-/* Create the users table for your login system */
-CREATE TABLE IF NOT EXISTS users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    username VARCHAR(50) UNIQUE NOT NULL,
-    password VARCHAR(255) NOT NULL
-);
+
+## 🚀 Features
+
+* **Dynamic Grid Engine**: Powered by `GridStack.js` for smooth dragging, resizing, and floating layouts.
+* **Auto-Load System**: Automatically restores your saved layout from the database upon page load.
+* **Elementor-Style Inspector**: Dedicated sidebar for editing widget content and Tailwind CSS styling.
+* **One-Click Duplication**: Clone existing widgets with all their styles and data intact.
+* **JSON-Based Storage**: Efficiently saves complex layouts into a single `LONGTEXT` column.
+* **Modern UI**: Fully responsive interface built with Tailwind CSS and FontAwesome icons.
+
+---
+
+## 🛠️ Tech Stack
+
+| Component | Technology |
+| :--- | :--- |
+| **Server Side** | PHP 8.x |
+| **Database** | MySQL (PDO) |
+| **Grid Engine** | GridStack.js 7.2.3 |
+| **Styling** | Tailwind CSS |
+| **Icons** | FontAwesome 6.4.0 |
+
+---
+
+## 📂 Installation & Setup
+
+### 1. Database Configuration
+Your `pages` table requires a column to store the JSON string. Ensure it is set to `LONGTEXT` to prevent data truncation for large pages.
+
+```sql
+ALTER TABLE pages MODIFY COLUMN content LONGTEXT;
