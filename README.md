@@ -29,7 +29,8 @@ the following SQL query in your database manager (such as phpMyAdmin) to create 
 The Core (core/config.php)This file establishes the secure PDO connection. It is the dependency required by the builder, the handler, and the renderer.
 ### B.
 The Visual Builder (admin_builder.php)The primary workspace for administrators. Built using GridStack.js and Tailwind CSS.Auto-Loading: On startup, it fetches the JSON from the database and rebuilds the grid exactly as it was last saved.Widgets: Includes Headings, Paragraphs, Images, and Buttons.Inspector: A sidebar for live-editing text content and Tailwind utility classes.Duplicate: A clone feature that creates an exact copy of a widget with a new unique ID.
-### C. The Save Handler (save_handler.php)A specialized API endpoint. It listens for POST requests from the builder, parses the JSON array, and updates the SQL content column for the specific page_id.
+### C.
+The Save Handler (save_handler.php)A specialized API endpoint. It listens for POST requests from the builder, parses the JSON array, and updates the SQL content column for the specific page_id.
 ### D. The Public Renderer (index.php)The performance-optimized "visitor" side of the CMS. It reads the JSON array and loops through it to generate a clean, static-like website for the end user without the overhead of the builder's JavaScript.
 
 ## 📝 4. Data Format (The Blueprint)
