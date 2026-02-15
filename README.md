@@ -4,8 +4,6 @@ Locawork CMS is a JSON-driven, block-based Content Management System. It replace
 
 
 
----
-
 ## 📂 1. Directory Structure
 
 ```text
