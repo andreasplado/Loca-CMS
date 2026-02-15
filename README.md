@@ -41,4 +41,7 @@ The CMS does not save raw HTML blocks. It saves a JSON Blueprint. This ensures t
   }
 ]
 ## 🚀 5. Quick Start GuideConnect:
-Update core/config.php with your local or production database credentials.Setup: Add a row to your pages table (e.g., ID: 1, Title: "Home Page").Build: Visit admin_builder.php?id=1. Drag widgets from the sidebar and design your layout.Publish: Click the "Publish Changes" button to sync the JSON to the database.View: Visit index.php?id=1 to see the live, rendered website.🛠️ 6. TroubleshootingIssueSolution"Save Failed"Ensure save_handler.php exists and the fetch URL in the builder matches the filename.Grid is emptyCheck if the content column in the DB is empty or contains malformed JSON.Icons missingEnsure you have an active internet connection for the FontAwesome CDN.© 2026 Locawork Admin Suite. Optimized for flexibility and speed.
+Update core/config.php with your local or production database credentials.Setup: Add a row to your pages table (e.g., ID: 1, Title: "Home Page").Build: Visit admin_builder.php?id=1. Drag widgets from the sidebar and design your layout.Publish: Click the "Publish Changes" button to sync the JSON to the database.View: Visit index.php?id=1 to see the live, rendered website.
+## 🛠️ 6. Troubleshooting
+Issue
+Solution"Save Failed"Ensure save_handler.php exists and the fetch URL in the builder matches the filename.Grid is emptyCheck if the content column in the DB is empty or contains malformed JSON.Icons missingEnsure you have an active internet connection for the FontAwesome CDN.© 2026 Locawork Admin Suite. Optimized for flexibility and speed.
