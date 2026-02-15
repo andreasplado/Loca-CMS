@@ -1,36 +1,13 @@
-# 🏗️ Locawork Visual Builder
-
-A high-performance, Elementor-inspired **Drag-and-Drop Page Builder** built with PHP, GridStack.js, and Tailwind CSS. This tool allows for real-time layout management, widget customization, and seamless database synchronization.
-
-
-
-## 🚀 Features
-
-* **Dynamic Grid Engine**: Powered by `GridStack.js` for smooth dragging, resizing, and floating layouts.
-* **Auto-Load System**: Automatically restores your saved layout from the database upon page load.
-* **Elementor-Style Inspector**: Dedicated sidebar for editing widget content and Tailwind CSS styling.
-* **One-Click Duplication**: Clone existing widgets with all their styles and data intact.
-* **JSON-Based Storage**: Efficiently saves complex layouts into a single `LONGTEXT` column.
-* **Modern UI**: Fully responsive interface built with Tailwind CSS and FontAwesome icons.
-
----
-
-## 🛠️ Tech Stack
-
-| Component | Technology |
-| :--- | :--- |
-| **Server Side** | PHP 8.x |
-| **Database** | MySQL (PDO) |
-| **Grid Engine** | GridStack.js 7.2.3 |
-| **Styling** | Tailwind CSS |
-| **Icons** | FontAwesome 6.4.0 |
-
----
-
-## 📂 Installation & Setup
-
-### 1. Database Configuration
-Your `pages` table requires a column to store the JSON string. Ensure it is set to `LONGTEXT` to prevent data truncation for large pages.
-
-```sql
-ALTER TABLE pages MODIFY COLUMN content LONGTEXT;
+⚙️ 3. Component BreakdownA. The Core (core/config.php)Connects the application to the database using PDO for security.B. The Visual Builder (admin_builder.php)A Drag-and-Drop workspace using GridStack.js.Loading: Injects the content column JSON into the grid.Duplication: Clones widgets with unique IDs.Inspector: A sidebar to modify Tailwind classes and text.C. The Save Handler (save_handler.php)The bridge between the Builder and the Database.Receives FormData.Validates the page_id.Stores the serialized JSON array.D. The Public Renderer (index.php)The "Live" side of the CMS. It interprets the JSON and renders it into a clean, optimized layout for visitors.📝 4. JSON Data SchemaEvery page element is saved as a structured object. This ensures the data is portable and easy to manipulate.JSON[
+  {
+    "x": 0,
+    "y": 0,
+    "w": 12,
+    "h": 2,
+    "id": "el_x9k2m1",
+    "type": "heading",
+    "content": "Welcome to Locawork",
+    "extra": "text-4xl font-black text-center text-slate-800"
+  }
+]
+🚀 5. Quick Start GuideConfigure Database: Edit core/config.php with your credentials.Create a Page: Manually insert a row into the pages table via phpMyAdmin or your dashboard.Open Builder: Navigate to admin_builder.php?id=1.Design: Drag widgets from the sidebar, click to edit, and move them into position.Publish: Click Publish Changes to push the JSON to the database.View: Visit index.php?id=1 to see the live rendering.🛠️ 6. TroubleshootingIssueSolutionGrid is empty on loadEnsure the content column in the DB isn't NULL or empty [].Save failsCheck the Network tab in Browser Console for save_handler.php errors.Styles missingEnsure you have an internet connection for the Tailwind/FontAwesome CDNs.🤝 Maintenance & ScalingTo add new features (like a Video widget):Update widgetDefaults in admin_builder.php.Add a template case to the generateHTML() function.Update the public index.php to handle the new type.
