@@ -1,5 +1,7 @@
 <?php
 require_once 'core/config.php';
+
+check_auth();
 // 2. CHECK FOR SAVE REQUEST IMMEDIATELY
 if (isset($_POST['save_blocks'])) {
     
